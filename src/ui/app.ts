@@ -8,6 +8,33 @@ export interface WeatherUIHandlers {
   onSelectRecord: (record: MoodRecord) => void;
 }
 
+/**
+ * Focus tracking across full DOM re-renders.
+ * Every render rebuilds innerHTML, so the focused node is destroyed and the
+ * browser drops focus to <body>. We remember a stable key for the focused
+ * element and restore focus to its replacement after rendering.
+ */
+let wasModalOpen = false;
+
+function focusKeyOf(el: Element): string | null {
+  if (el.id) return `#${el.id}`;
+  const tag = el.getAttribute('data-tag');
+  if (tag) return `tag:${tag}`;
+  const recordId = el.getAttribute('data-id');
+  if (recordId) return `pill:${recordId}`;
+  return null;
+}
+
+function findByFocusKey(container: HTMLElement, key: string): HTMLElement | null {
+  if (key.startsWith('#')) return container.querySelector<HTMLElement>(key);
+  if (key.startsWith('tag:')) return container.querySelector<HTMLElement>(`[data-tag="${key.slice(4)}"]`);
+  if (key.startsWith('pill:')) return container.querySelector<HTMLElement>(`[data-id="${key.slice(5)}"]`);
+  return null;
+}
+
+const FOCUSABLE_INSIDE_DIALOG =
+  'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"]):not([disabled])';
+
 export function renderWeatherApp(
   container: HTMLElement,
   chartData: SynopticChartData,
@@ -108,9 +135,16 @@ export function renderWeatherApp(
     </svg>
   `;
 
+  // Remember keyboard focus before the DOM is torn down by the full re-render
+  const activeBeforeRender = document.activeElement;
+  const focusKeyToRestore =
+    activeBeforeRender && container.contains(activeBeforeRender)
+      ? focusKeyOf(activeBeforeRender)
+      : null;
+
   container.innerHTML = `
     <div class="met-app">
-      <header class="met-header">
+      <header class="met-header" ${isModalOpen ? 'inert' : ''}>
         <div class="met-brand">
           <div class="radar-icon">📡</div>
           <div>
@@ -127,7 +161,7 @@ export function renderWeatherApp(
       ${
         chartData.alerts.length > 0
           ? `
-        <div class="alert-banner">
+        <div class="alert-banner" ${isModalOpen ? 'inert' : ''}>
           <div class="alert-banner-left">
             <span class="alert-tag">${chartData.alerts[0].level}预警</span>
             <strong>${esc(chartData.alerts[0].title)}</strong>
@@ -139,7 +173,7 @@ export function renderWeatherApp(
           : ''
       }
 
-      <div class="met-grid">
+      <div class="met-grid" ${isModalOpen ? 'inert' : ''}>
         <!-- Left: Synoptic Chart & Telemetry -->
         <main class="synoptic-box">
           <div class="box-title">
@@ -192,12 +226,12 @@ export function renderWeatherApp(
               ${chartData.records
                 .map(
                   r => `
-                <div class="record-pill ${r.id === cur.id ? 'active' : ''}" data-id="${r.id}">
+                <button type="button" class="record-pill ${r.id === cur.id ? 'active' : ''}" data-id="${r.id}" aria-pressed="${r.id === cur.id ? 'true' : 'false'}">
                   <div class="pill-date">${r.date.slice(5)}</div>
                   <div class="pill-icon">${(TAG_METAS[r.tag] || TAG_METAS['阴转多云']).icon}</div>
                   <div class="pill-tag">${esc(r.tag)}</div>
                   <div class="pill-pressure">${r.pressureHpa} hPa</div>
-                </div>
+                </button>
               `
                 )
                 .join('')}
@@ -288,15 +322,15 @@ export function renderWeatherApp(
         isModalOpen
           ? `
         <div class="modal-backdrop" id="modalBackdrop">
-          <div class="modal-dialog">
-            <h3>✍️ 今日心情气象签到</h3>
-            
+          <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="logModalTitle" tabindex="-1">
+            <h3 id="logModalTitle">✍️ 今日心情气象签到</h3>
+
             <label style="font-size:12px;color:var(--met-muted);display:block;margin-bottom:8px;">选择今日核心气象标签：</label>
-            <div class="tag-selector-grid">
+            <div class="tag-selector-grid" role="group">
               ${Object.values(TAG_METAS)
                 .map(
                   m => `
-                <button type="button" class="tag-btn ${m.tag === selectedTag ? 'active' : ''}" data-tag="${m.tag}">
+                <button type="button" class="tag-btn ${m.tag === selectedTag ? 'active' : ''}" data-tag="${m.tag}" aria-pressed="${m.tag === selectedTag ? 'true' : 'false'}">
                   <span style="font-size:16px;">${m.icon}</span>
                   <span>${m.tag}</span>
                 </button>
@@ -306,12 +340,12 @@ export function renderWeatherApp(
             </div>
 
             <div class="form-group">
-              <label>气象对流强度 (1 - 10 级)：<span id="intensityVal" style="color:var(--met-cyan);font-weight:bold;">${selectedIntensity}</span></label>
-              <input type="range" class="form-range" id="intensityInput" min="1" max="10" value="${selectedIntensity}" />
+              <label for="intensityInput">气象对流强度 (1 - 10 级)：<span id="intensityVal" style="color:var(--met-cyan);font-weight:bold;">${selectedIntensity}</span></label>
+              <input type="range" class="form-range" id="intensityInput" min="1" max="10" value="${selectedIntensity}" aria-valuetext="${selectedIntensity} 级" />
             </div>
 
             <div class="form-group">
-              <label>观测记录与心绪注记：</label>
+              <label for="noteInput">观测记录与心绪注记：</label>
               <textarea class="form-textarea" id="noteInput" placeholder="写下引起今天气压变化的事情或思绪...">${esc(noteText)}</textarea>
             </div>
 
@@ -343,14 +377,28 @@ export function renderWeatherApp(
     container.querySelectorAll('.tag-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const tag = btn.getAttribute('data-tag');
-        if (tag) onTagChange(tag);
+        if (!tag) return;
+        // Update the selection in place: a full re-render here would destroy
+        // the button the keyboard user just activated and drop focus.
+        container.querySelectorAll('.tag-btn').forEach(other => {
+          const selected = other === btn;
+          other.classList.toggle('active', selected);
+          other.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        });
+        onTagChange(tag);
       });
     });
 
     const intensitySlider = container.querySelector('#intensityInput') as HTMLInputElement;
     if (intensitySlider) {
       intensitySlider.addEventListener('input', () => {
-        onIntensityChange(parseInt(intensitySlider.value, 10));
+        const val = parseInt(intensitySlider.value, 10);
+        // Keep the value label live without re-rendering, so keyboard arrow
+        // keys keep adjusting the same focused slider continuously.
+        const valLabel = container.querySelector('#intensityVal');
+        if (valLabel) valLabel.textContent = String(val);
+        intensitySlider.setAttribute('aria-valuetext', `${val} 级`);
+        onIntensityChange(val);
       });
     }
 
@@ -362,14 +410,69 @@ export function renderWeatherApp(
     }
 
     container.querySelector('#btnCancelModal')?.addEventListener('click', onCloseModal);
-    container.querySelector('#modalBackdrop')?.addEventListener('click', e => {
-      if (e.target === container.querySelector('#modalBackdrop')) {
+
+    const backdrop = container.querySelector<HTMLElement>('#modalBackdrop');
+    const dialog = container.querySelector<HTMLElement>('.modal-dialog');
+
+    backdrop?.addEventListener('click', e => {
+      if (e.target === backdrop) {
         onCloseModal();
       }
     });
 
-    container.querySelector('#btnSubmitModal')?.addEventListener('click', () => {
-      handlers.onSubmitLog(selectedTag, selectedIntensity, noteText);
+    // Escape closes; Tab is trapped inside the dialog so focus can never
+    // escape to page content hidden behind the backdrop.
+    backdrop?.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCloseModal();
+        return;
+      }
+      if (e.key !== 'Tab' || !dialog) return;
+
+      const focusables = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_INSIDE_DIALOG));
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+
+      if (e.shiftKey) {
+        if (active === first || active === dialog || !dialog.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !dialog.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
     });
+
+    container.querySelector('#btnSubmitModal')?.addEventListener('click', () => {
+      // Read live form values so this handler never depends on values
+      // captured at the (possibly much earlier) render time.
+      const activeTagBtn = container.querySelector('.tag-btn.active');
+      const tag = activeTagBtn?.getAttribute('data-tag') || selectedTag;
+      const sliderEl = container.querySelector('#intensityInput') as HTMLInputElement | null;
+      const intensity = sliderEl ? parseInt(sliderEl.value, 10) : selectedIntensity;
+      const noteEl = container.querySelector('#noteInput') as HTMLTextAreaElement | null;
+      const note = noteEl ? noteEl.value : noteText;
+      handlers.onSubmitLog(tag, intensity, note);
+    });
+  }
+
+  // --- Focus restoration across the rebuild -------------------------------
+  const modalJustOpened = isModalOpen && !wasModalOpen;
+  const modalJustClosed = !isModalOpen && wasModalOpen;
+  wasModalOpen = isModalOpen;
+
+  if (modalJustOpened) {
+    // Move focus into the dialog (announced via aria-labelledby)
+    container.querySelector<HTMLElement>('.modal-dialog')?.focus();
+  } else if (modalJustClosed) {
+    // Submit / cancel / Escape / backdrop close: return focus to the trigger
+    container.querySelector<HTMLElement>('#btnOpenLog')?.focus();
+  } else if (focusKeyToRestore) {
+    // Regular re-render (reset button, record pill, ...): keep keyboard place
+    findByFocusKey(container, focusKeyToRestore)?.focus();
   }
 }

@@ -74,12 +74,14 @@ function refreshView() {
       refreshView();
     },
     (tag: string) => {
+      // No full re-render: the UI toggles the active tag button in place,
+      // which keeps keyboard focus on the button the user just activated.
       selectedTag = tag;
-      refreshView();
     },
     (intensity: number) => {
+      // No full re-render: the value label is updated in place so the slider
+      // stays focused and can be adjusted continuously with the arrow keys.
       selectedIntensity = intensity;
-      refreshView();
     },
     (note: string) => {
       noteText = note;

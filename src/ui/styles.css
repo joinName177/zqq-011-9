@@ -20,6 +20,12 @@
   padding: 0;
 }
 
+/* Keyboard focus must stay visible on every interactive element */
+:focus-visible {
+  outline: 2px solid var(--met-cyan);
+  outline-offset: 2px;
+}
+
 body {
   background-color: var(--met-bg);
   color: var(--met-text);
@@ -288,9 +294,16 @@ body {
   border-radius: 8px;
   padding: 10px;
   font-size: 12px;
+  font-family: inherit;
+  color: var(--met-text);
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.record-pill.active {
+  border-color: var(--met-cyan);
+  background: rgba(0, 240, 255, 0.08);
 }
 
 .record-pill:hover {
@@ -520,6 +533,12 @@ body {
   width: 100%;
   padding: 28px;
   box-shadow: 0 10px 40px rgba(0, 240, 255, 0.2);
+}
+
+/* The dialog container receives programmatic focus on open; its cyan border
+   already marks it, so suppress the default focus ring on the container only */
+.modal-dialog:focus {
+  outline: none;
 }
 
 .modal-dialog h3 {
