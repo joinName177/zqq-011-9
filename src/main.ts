@@ -19,6 +19,12 @@ let selectedTag = '阴转多云';
 let selectedIntensity = 5;
 let noteText = '';
 
+// Selector of the element that must receive keyboard focus after the next
+// full re-render. Rendering rebuilds the whole DOM tree, so any focused
+// element is destroyed; restoring focus explicitly keeps the keyboard flow
+// continuous across renders.
+let pendingFocusSelector: string | null = null;
+
 const rootEl = document.getElementById('app')!;
 const bugSurface = buildBugSurface([records.length, chartData.zones.length]);
 rootEl.dataset.moodSummary = JSON.stringify({
@@ -45,11 +51,15 @@ function refreshView() {
         selectedTag = '阴转多云';
         selectedIntensity = 5;
         noteText = '';
+        // Move focus into the freshly rendered dialog.
+        pendingFocusSelector = '#logModal';
         refreshView();
       },
       onResetData: () => {
         records = repo.resetToSample();
         chartData = metEngine.generateSynopticChart(records);
+        // Keep focus on the reset button instead of dropping it to <body>.
+        pendingFocusSelector = '#btnReset';
         refreshView();
       },
       onSubmitLog: (tag: string, intensity: number, note: string) => {
@@ -59,6 +69,8 @@ function refreshView() {
         records = repo.getAll();
         chartData = metEngine.generateSynopticChart(records);
         isModalOpen = false;
+        // Return focus to the button that opened the dialog.
+        pendingFocusSelector = '#btnOpenLog';
         refreshView();
       },
       onSelectRecord: (record: MoodRecord) => {
@@ -66,25 +78,36 @@ function refreshView() {
         const filtered = records.filter(r => r.date <= record.date);
         chartData = metEngine.generateSynopticChart(filtered.length > 0 ? filtered : records);
         chartData.currentRecord = record;
+        // Keep focus on the record pill that was just activated.
+        pendingFocusSelector = `.record-pill[data-id="${record.id}"]`;
         refreshView();
       }
     },
     () => {
+      // Cancel / backdrop click / Escape: close and restore focus to the
+      // element that opened the dialog.
       isModalOpen = false;
+      pendingFocusSelector = '#btnOpenLog';
       refreshView();
     },
     (tag: string) => {
+      // Dialog-local change: no re-render, focus stays on the tag button.
       selectedTag = tag;
-      refreshView();
     },
     (intensity: number) => {
+      // Dialog-local change: no re-render, focus stays on the slider.
       selectedIntensity = intensity;
-      refreshView();
     },
     (note: string) => {
       noteText = note;
     }
   );
+
+  if (pendingFocusSelector) {
+    const target = rootEl.querySelector<HTMLElement>(pendingFocusSelector);
+    pendingFocusSelector = null;
+    target?.focus();
+  }
 }
 
 // Initial mount

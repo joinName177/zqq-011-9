@@ -110,177 +110,179 @@ export function renderWeatherApp(
 
   container.innerHTML = `
     <div class="met-app">
-      <header class="met-header">
-        <div class="met-brand">
-          <div class="radar-icon">📡</div>
-          <div>
-            <h1>情绪天气台 · 心灵气象图系统</h1>
-            <p>PSYCHOLOGICAL METEOROLOGICAL OBSERVATORY &amp; SYNOPTIC CHART</p>
-          </div>
-        </div>
-        <div class="met-header-actions">
-          <button class="btn-reset" id="btnReset">🔄 重置示例气象序列</button>
-          <button class="btn-record-mood" id="btnOpenLog">✍️ 记录今日心情天气</button>
-        </div>
-      </header>
-
-      ${
-        chartData.alerts.length > 0
-          ? `
-        <div class="alert-banner">
-          <div class="alert-banner-left">
-            <span class="alert-tag">${chartData.alerts[0].level}预警</span>
-            <strong>${esc(chartData.alerts[0].title)}</strong>
-            <span style="font-size:13px;color:var(--met-text);">${esc(chartData.alerts[0].triggerCause)}</span>
-          </div>
-          <span style="font-size:12px;color:var(--met-muted);">${chartData.alerts[0].issuedTime} 发布</span>
-        </div>
-      `
-          : ''
-      }
-
-      <div class="met-grid">
-        <!-- Left: Synoptic Chart & Telemetry -->
-        <main class="synoptic-box">
-          <div class="box-title">
-            <h2>🌐 个人专属情绪综观天气图 (Synoptic Chart)</h2>
-            <span style="font-size:12px;color:var(--met-muted);font-family:monospace;">
-              ${chartData.chartId} · ${chartData.generatedDate}
-            </span>
-          </div>
-
-          <!-- Current Telemetry -->
-          <div class="current-telemetry">
-            <div class="telemetry-card">
-              <div class="lbl">心境气压 (Barometer)</div>
-              <div class="val" style="color:var(--met-cyan);">${cur.pressureHpa} <span style="font-size:12px;">hPa</span></div>
-              <div class="lbl">${cur.pressureHpa < 1000 ? '低压对流' : '高压反气旋'}</div>
-            </div>
-            <div class="telemetry-card">
-              <div class="lbl">情绪温度 (Temperature)</div>
-              <div class="val" style="color:var(--met-gold);">${cur.temperatureC} <span style="font-size:12px;">°C</span></div>
-              <div class="lbl">体感适宜度良好</div>
-            </div>
-            <div class="telemetry-card">
-              <div class="lbl">心理湿度 (Humidity)</div>
-              <div class="val" style="color:var(--met-blue);">${cur.humidityPercent}%</div>
-              <div class="lbl">${cur.humidityPercent > 80 ? '湿润多云' : '清爽干燥'}</div>
-            </div>
-            <div class="telemetry-card">
-              <div class="lbl">思绪风场 (Wind Field)</div>
-              <div class="val" style="color:#fff;">${cur.windDirectionName}风</div>
-              <div class="lbl">${cur.windSpeedKmH} km/h</div>
+      <div class="app-content" ${isModalOpen ? 'inert aria-hidden="true"' : ''}>
+        <header class="met-header">
+          <div class="met-brand">
+            <div class="radar-icon">📡</div>
+            <div>
+              <h1>情绪天气台 · 心灵气象图系统</h1>
+              <p>PSYCHOLOGICAL METEOROLOGICAL OBSERVATORY &amp; SYNOPTIC CHART</p>
             </div>
           </div>
-
-          <!-- SVG Weather Map -->
-          <div class="synoptic-map-wrap">
-            ${isobarsSvg}
+          <div class="met-header-actions">
+            <button class="btn-reset" id="btnReset" type="button">🔄 重置示例气象序列</button>
+            <button class="btn-record-mood" id="btnOpenLog" type="button">✍️ 记录今日心情天气</button>
           </div>
+        </header>
 
-          <div class="map-legend">
-            <div class="legend-item"><div class="legend-color" style="background:#ff0054;"></div><span>低压中心 (L) / 气旋雨带</span></div>
-            <div class="legend-item"><div class="legend-color" style="background:#3a86ff;"></div><span>高压中心 (H) / 晴朗平稳</span></div>
-            <div class="legend-item"><div class="legend-color" style="background:#00f0ff;"></div><span>等压线 (Isobars)</span></div>
-            <div class="legend-item"><div class="legend-color" style="background:#ffbe0b;"></div><span>风向矢量箭头</span></div>
-          </div>
-
-          <!-- Recent Days Sequence Strip -->
-          <div class="timeline-section">
-            <h3>📅 近期气象观测序列 (点击切换观测标本)</h3>
-            <div class="records-strip">
-              ${chartData.records
-                .map(
-                  r => `
-                <div class="record-pill ${r.id === cur.id ? 'active' : ''}" data-id="${r.id}">
-                  <div class="pill-date">${r.date.slice(5)}</div>
-                  <div class="pill-icon">${(TAG_METAS[r.tag] || TAG_METAS['阴转多云']).icon}</div>
-                  <div class="pill-tag">${esc(r.tag)}</div>
-                  <div class="pill-pressure">${r.pressureHpa} hPa</div>
-                </div>
-              `
-                )
-                .join('')}
+        ${
+          chartData.alerts.length > 0
+            ? `
+          <div class="alert-banner">
+            <div class="alert-banner-left">
+              <span class="alert-tag">${chartData.alerts[0].level}预警</span>
+              <strong>${esc(chartData.alerts[0].title)}</strong>
+              <span style="font-size:13px;color:var(--met-text);">${esc(chartData.alerts[0].triggerCause)}</span>
             </div>
+            <span style="font-size:12px;color:var(--met-muted);">${chartData.alerts[0].issuedTime} 发布</span>
           </div>
-        </main>
+        `
+            : ''
+        }
 
-        <!-- Right: Zones, Monsoon, Alerts -->
-        <aside class="right-column">
-          <!-- Barometric Zones -->
-          <section class="side-panel">
-            <h3>🧭 情绪气压带分布</h3>
-            <div class="zone-list">
-              ${chartData.zones
-                .map(
-                  z => `
-                <div class="zone-card">
-                  <div class="zone-header">
-                    <span class="zone-name">${esc(z.name)}</span>
-                    <span class="zone-ratio">${z.activeRatio}% 频次</span>
+        <div class="met-grid">
+          <!-- Left: Synoptic Chart & Telemetry -->
+          <main class="synoptic-box">
+            <div class="box-title">
+              <h2>🌐 个人专属情绪综观天气图 (Synoptic Chart)</h2>
+              <span style="font-size:12px;color:var(--met-muted);font-family:monospace;">
+                ${chartData.chartId} · ${chartData.generatedDate}
+              </span>
+            </div>
+
+            <!-- Current Telemetry -->
+            <div class="current-telemetry">
+              <div class="telemetry-card">
+                <div class="lbl">心境气压 (Barometer)</div>
+                <div class="val" style="color:var(--met-cyan);">${cur.pressureHpa} <span style="font-size:12px;">hPa</span></div>
+                <div class="lbl">${cur.pressureHpa < 1000 ? '低压对流' : '高压反气旋'}</div>
+              </div>
+              <div class="telemetry-card">
+                <div class="lbl">情绪温度 (Temperature)</div>
+                <div class="val" style="color:var(--met-gold);">${cur.temperatureC} <span style="font-size:12px;">°C</span></div>
+                <div class="lbl">体感适宜度良好</div>
+              </div>
+              <div class="telemetry-card">
+                <div class="lbl">心理湿度 (Humidity)</div>
+                <div class="val" style="color:var(--met-blue);">${cur.humidityPercent}%</div>
+                <div class="lbl">${cur.humidityPercent > 80 ? '湿润多云' : '清爽干燥'}</div>
+              </div>
+              <div class="telemetry-card">
+                <div class="lbl">思绪风场 (Wind Field)</div>
+                <div class="val" style="color:#fff;">${cur.windDirectionName}风</div>
+                <div class="lbl">${cur.windSpeedKmH} km/h</div>
+              </div>
+            </div>
+
+            <!-- SVG Weather Map -->
+            <div class="synoptic-map-wrap">
+              ${isobarsSvg}
+            </div>
+
+            <div class="map-legend">
+              <div class="legend-item"><div class="legend-color" style="background:#ff0054;"></div><span>低压中心 (L) / 气旋雨带</span></div>
+              <div class="legend-item"><div class="legend-color" style="background:#3a86ff;"></div><span>高压中心 (H) / 晴朗平稳</span></div>
+              <div class="legend-item"><div class="legend-color" style="background:#00f0ff;"></div><span>等压线 (Isobars)</span></div>
+              <div class="legend-item"><div class="legend-color" style="background:#ffbe0b;"></div><span>风向矢量箭头</span></div>
+            </div>
+
+            <!-- Recent Days Sequence Strip -->
+            <div class="timeline-section">
+              <h3>📅 近期气象观测序列 (点击切换观测标本)</h3>
+              <div class="records-strip">
+                ${chartData.records
+                  .map(
+                    r => `
+                  <button type="button" class="record-pill ${r.id === cur.id ? 'active' : ''}" data-id="${r.id}" ${r.id === cur.id ? 'aria-current="true"' : ''}>
+                    <div class="pill-date">${r.date.slice(5)}</div>
+                    <div class="pill-icon">${(TAG_METAS[r.tag] || TAG_METAS['阴转多云']).icon}</div>
+                    <div class="pill-tag">${esc(r.tag)}</div>
+                    <div class="pill-pressure">${r.pressureHpa} hPa</div>
+                  </button>
+                `
+                  )
+                  .join('')}
+              </div>
+            </div>
+          </main>
+
+          <!-- Right: Zones, Monsoon, Alerts -->
+          <aside class="right-column">
+            <!-- Barometric Zones -->
+            <section class="side-panel">
+              <h3>🧭 情绪气压带分布</h3>
+              <div class="zone-list">
+                ${chartData.zones
+                  .map(
+                    z => `
+                  <div class="zone-card">
+                    <div class="zone-header">
+                      <span class="zone-name">${esc(z.name)}</span>
+                      <span class="zone-ratio">${z.activeRatio}% 频次</span>
+                    </div>
+                    <div class="zone-progress-bg">
+                      <div class="zone-progress-fill" style="width: ${z.activeRatio}%"></div>
+                    </div>
+                    <div class="zone-desc">${esc(z.psychologicalState)}</div>
                   </div>
-                  <div class="zone-progress-bg">
-                    <div class="zone-progress-fill" style="width: ${z.activeRatio}%"></div>
-                  </div>
-                  <div class="zone-desc">${esc(z.psychologicalState)}</div>
+                `
+                  )
+                  .join('')}
+              </div>
+            </section>
+
+            <!-- Monsoon Trends -->
+            <section class="side-panel">
+              <h3>🌬️ 季风走势与大气环流</h3>
+              <div class="monsoon-card">
+                <div class="monsoon-vector-title">
+                  <span>🍃</span>
+                  <span>${esc(chartData.monsoon.vectorName)}</span>
                 </div>
-              `
-                )
-                .join('')}
-            </div>
-          </section>
+                <div class="monsoon-meta">
+                  <div>流场源动力：${esc(chartData.monsoon.originSource)}</div>
+                  <div>流动强度：${chartData.monsoon.flowSpeed}</div>
+                </div>
+                <div class="monsoon-forecast-box">
+                  <strong>未来三日气象推演：</strong>
+                  <div>${esc(chartData.monsoon.upcomingForecast)}</div>
+                </div>
+              </div>
+            </section>
 
-          <!-- Monsoon Trends -->
-          <section class="side-panel">
-            <h3>🌬️ 季风走势与大气环流</h3>
-            <div class="monsoon-card">
-              <div class="monsoon-vector-title">
-                <span>🍃</span>
-                <span>${esc(chartData.monsoon.vectorName)}</span>
-              </div>
-              <div class="monsoon-meta">
-                <div>流场源动力：${esc(chartData.monsoon.originSource)}</div>
-                <div>流动强度：${chartData.monsoon.flowSpeed}</div>
-              </div>
-              <div class="monsoon-forecast-box">
-                <strong>未来三日气象推演：</strong>
-                <div>${esc(chartData.monsoon.upcomingForecast)}</div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Extreme Weather Alerts -->
-          <section class="side-panel">
-            <h3>⚠️ 极端天气预警与自愈指南</h3>
-            <div class="alerts-list">
-              ${
-                chartData.alerts.length > 0
-                  ? chartData.alerts
-                      .map(
-                        a => `
-                    <div class="alert-item ${a.level}">
-                      <div class="alert-title-row">
-                        <span class="alert-name">${esc(a.title)}</span>
-                        <span class="alert-level-badge" style="background:rgba(255,255,255,0.1);color:#fff;">${a.level}</span>
+            <!-- Extreme Weather Alerts -->
+            <section class="side-panel">
+              <h3>⚠️ 极端天气预警与自愈指南</h3>
+              <div class="alerts-list">
+                ${
+                  chartData.alerts.length > 0
+                    ? chartData.alerts
+                        .map(
+                          a => `
+                      <div class="alert-item ${a.level}">
+                        <div class="alert-title-row">
+                          <span class="alert-name">${esc(a.title)}</span>
+                          <span class="alert-level-badge" style="background:rgba(255,255,255,0.1);color:#fff;">${a.level}</span>
+                        </div>
+                        <div class="alert-cause">${esc(a.triggerCause)}</div>
+                        <div class="defense-guide-title">🛡️ 防灾避险自愈协议：</div>
+                        <ul class="defense-list">
+                          ${a.defenseProtocol.map(p => `<li>${esc(p)}</li>`).join('')}
+                        </ul>
                       </div>
-                      <div class="alert-cause">${esc(a.triggerCause)}</div>
-                      <div class="defense-guide-title">🛡️ 防灾避险自愈协议：</div>
-                      <ul class="defense-list">
-                        ${a.defenseProtocol.map(p => `<li>${esc(p)}</li>`).join('')}
-                      </ul>
-                    </div>
-                  `
-                      )
-                      .join('')
-                  : `
-                    <div style="font-size:13px;color:var(--met-muted);background:var(--met-card);padding:14px;border-radius:8px;">
-                      ✅ 当前心境空域晴朗，无活动极端灾害天气警报。
-                    </div>
-                  `
-              }
-            </div>
-          </section>
-        </aside>
+                    `
+                        )
+                        .join('')
+                    : `
+                      <div style="font-size:13px;color:var(--met-muted);background:var(--met-card);padding:14px;border-radius:8px;">
+                        ✅ 当前心境空域晴朗，无活动极端灾害天气警报。
+                      </div>
+                    `
+                }
+              </div>
+            </section>
+          </aside>
+        </div>
       </div>
 
       <!-- Modal: Record Daily Mood Weather -->
@@ -288,15 +290,22 @@ export function renderWeatherApp(
         isModalOpen
           ? `
         <div class="modal-backdrop" id="modalBackdrop">
-          <div class="modal-dialog">
-            <h3>✍️ 今日心情气象签到</h3>
-            
-            <label style="font-size:12px;color:var(--met-muted);display:block;margin-bottom:8px;">选择今日核心气象标签：</label>
-            <div class="tag-selector-grid">
+          <div
+            class="modal-dialog"
+            id="logModal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logModalTitle"
+            tabindex="-1"
+          >
+            <h3 id="logModalTitle">✍️ 今日心情气象签到</h3>
+
+            <div class="tag-selector-label" id="tagSelectorLabel">选择今日核心气象标签：</div>
+            <div class="tag-selector-grid" role="group" aria-labelledby="tagSelectorLabel">
               ${Object.values(TAG_METAS)
                 .map(
                   m => `
-                <button type="button" class="tag-btn ${m.tag === selectedTag ? 'active' : ''}" data-tag="${m.tag}">
+                <button type="button" class="tag-btn ${m.tag === selectedTag ? 'active' : ''}" data-tag="${m.tag}" aria-pressed="${m.tag === selectedTag}">
                   <span style="font-size:16px;">${m.icon}</span>
                   <span>${m.tag}</span>
                 </button>
@@ -306,12 +315,12 @@ export function renderWeatherApp(
             </div>
 
             <div class="form-group">
-              <label>气象对流强度 (1 - 10 级)：<span id="intensityVal" style="color:var(--met-cyan);font-weight:bold;">${selectedIntensity}</span></label>
+              <label for="intensityInput">气象对流强度 (1 - 10 级)：<span id="intensityVal" style="color:var(--met-cyan);font-weight:bold;">${selectedIntensity}</span></label>
               <input type="range" class="form-range" id="intensityInput" min="1" max="10" value="${selectedIntensity}" />
             </div>
 
             <div class="form-group">
-              <label>观测记录与心绪注记：</label>
+              <label for="noteInput">观测记录与心绪注记：</label>
               <textarea class="form-textarea" id="noteInput" placeholder="写下引起今天气压变化的事情或思绪...">${esc(noteText)}</textarea>
             </div>
 
@@ -331,7 +340,7 @@ export function renderWeatherApp(
   container.querySelector('#btnOpenLog')?.addEventListener('click', handlers.onOpenLogModal);
   container.querySelector('#btnReset')?.addEventListener('click', handlers.onResetData);
 
-  container.querySelectorAll('.record-pill').forEach(pill => {
+  container.querySelectorAll<HTMLElement>('.record-pill').forEach(pill => {
     pill.addEventListener('click', () => {
       const id = pill.getAttribute('data-id');
       const rec = chartData.records.find(r => r.id === id);
@@ -340,21 +349,37 @@ export function renderWeatherApp(
   });
 
   if (isModalOpen) {
-    container.querySelectorAll('.tag-btn').forEach(btn => {
+    // Modal-internal state is kept local to the dialog: updating tag / intensity /
+    // note mutates only the dialog nodes instead of rebuilding the whole page,
+    // which would destroy the element currently holding keyboard focus.
+    let modalTag = selectedTag;
+    let modalIntensity = selectedIntensity;
+
+    container.querySelectorAll<HTMLButtonElement>('.tag-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const tag = btn.getAttribute('data-tag');
-        if (tag) onTagChange(tag);
+        if (!tag) return;
+        modalTag = tag;
+        container.querySelectorAll<HTMLButtonElement>('.tag-btn').forEach(other => {
+          const isActive = other.getAttribute('data-tag') === tag;
+          other.classList.toggle('active', isActive);
+          other.setAttribute('aria-pressed', String(isActive));
+        });
+        onTagChange(tag);
       });
     });
 
-    const intensitySlider = container.querySelector('#intensityInput') as HTMLInputElement;
+    const intensitySlider = container.querySelector<HTMLInputElement>('#intensityInput');
+    const intensityVal = container.querySelector('#intensityVal');
     if (intensitySlider) {
       intensitySlider.addEventListener('input', () => {
-        onIntensityChange(parseInt(intensitySlider.value, 10));
+        modalIntensity = parseInt(intensitySlider.value, 10);
+        if (intensityVal) intensityVal.textContent = intensitySlider.value;
+        onIntensityChange(modalIntensity);
       });
     }
 
-    const noteBox = container.querySelector('#noteInput') as HTMLTextAreaElement;
+    const noteBox = container.querySelector<HTMLTextAreaElement>('#noteInput');
     if (noteBox) {
       noteBox.addEventListener('input', () => {
         onNoteChange(noteBox.value);
@@ -362,14 +387,56 @@ export function renderWeatherApp(
     }
 
     container.querySelector('#btnCancelModal')?.addEventListener('click', onCloseModal);
-    container.querySelector('#modalBackdrop')?.addEventListener('click', e => {
-      if (e.target === container.querySelector('#modalBackdrop')) {
-        onCloseModal();
-      }
-    });
+
+    const backdrop = container.querySelector<HTMLElement>('#modalBackdrop');
+    if (backdrop) {
+      backdrop.addEventListener('click', e => {
+        if (e.target === backdrop) onCloseModal();
+      });
+
+      // Keyboard handling for the dialog: Escape closes it, Tab is trapped so
+      // focus can never reach the inert background content behind the backdrop.
+      backdrop.addEventListener('keydown', (e: KeyboardEvent) => {
+        const dialog = container.querySelector<HTMLElement>('#logModal');
+        if (!dialog) return;
+
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onCloseModal();
+          return;
+        }
+
+        if (e.key !== 'Tab') return;
+
+        const focusables = Array.from(
+          dialog.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+          )
+        );
+        if (focusables.length === 0) {
+          e.preventDefault();
+          return;
+        }
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+
+        if (e.shiftKey && (active === first || active === dialog || !dialog.contains(active))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (active === last || active === dialog || !dialog.contains(active))) {
+          e.preventDefault();
+          first.focus();
+        }
+      });
+    }
 
     container.querySelector('#btnSubmitModal')?.addEventListener('click', () => {
-      handlers.onSubmitLog(selectedTag, selectedIntensity, noteText);
+      // Read live values from the dialog: the form updates without re-rendering,
+      // so the render-time arguments would be stale here (notably the note).
+      const note = noteBox ? noteBox.value : '';
+      handlers.onSubmitLog(modalTag, modalIntensity, note);
     });
   }
 }
